@@ -1,0 +1,66 @@
+version: '3'
+
+services:
+  elasticsearch:
+    container_name: vagrant-elasticsearch
+    hostname: elasticsearch
+    image: docker.elastic.co/elasticsearch/elasticsearch-oss:6.5.4
+    restart: always
+    environment:
+      - TZ=Asia/Hong_Kong
+      - bootstrap.memory_lock=true
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+      - discovery.type=single-node
+    ports:
+      - "9200:9200"
+    networks:
+      - elastic
+    volumes:
+      - elasticsearch-data:/usr/share/elasticsearch/data
+  kibana:
+    container_name: vagrant-kibana
+    hostname: kibana
+    image: docker.elastic.co/kibana/kibana-oss:6.5.4
+    restart: always
+    ports:
+      - 5601:5601
+    networks:
+      - elastic
+    #We don't start Kibana until the ES instance is ready
+    depends_on: ['elasticsearch']
+    environment:
+      - ELASTICSEARCH_URL=http://172.23.62.92:9200
+      - TZ=Asia/Hong_Kong
+  filebeat:
+    container_name: vagrant-filebeat
+    hostname: filebeat
+    user: root
+    image: docker.elastic.co/beats/filebeat-oss:6.5.4
+    restart: always
+    networks:
+      - elastic
+    #We don't start Filebeat until the ES and Kibana instance is ready
+    depends_on: ['elasticsearch','kibana']
+    environment:
+      - TZ=Asia/Hong_Kong
+    command: filebeat -e -strict.perms=false
+    volumes:
+      # # Mount the Filebeat configuration so users can make edits.
+      # - filebeat-config:/usr/share/filebeat
+      # Mount the Filebeat configuration so users can make edits.
+      - ./filebeat/config/filebeat.yml:/usr/share/filebeat/filebeat.yml
+      # Mount the prospectors directory. Users can in turn add propspectors to this directory and they will be dynamically loaded
+      - ./filebeat/config/prospectors.d:/usr/share/filebeat/prospectors.d
+      # Mount the Docker logs for indexing by the custom prospector ./config/filebeat/prospectors.d.
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      # Allows us to report on docker from the hosts information.
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+volumes:
+  elasticsearch-data:
+    driver: local
+  # filebeat-config:
+  #   driver: local
+
+networks:
+  elastic:
+    driver: bridge

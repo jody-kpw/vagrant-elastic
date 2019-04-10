@@ -1,0 +1,18 @@
+- type: docker
+  containers.ids:
+    - "*"
+  processors:
+  - add_docker_metadata:
+      host: "unix:///var/run/docker.sock"
+      #match_fields: ["system.process.cgroup.id"]
+      #match_pids: ["process.pid", "process.ppid"]
+      #match_source: true
+      #match_source_index: 4
+      #match_short_id: true
+      #cleanup_timeout: 60
+      #labels.dedot: false
+      # To connect to Docker over TLS you must specify a client and CA certificate.
+      #ssl:
+      #  certificate_authority: "/etc/pki/root/ca.pem"
+      #  certificate:           "/etc/pki/client/cert.pem"
+      #  key:                   "/etc/pki/client/cert.key"
