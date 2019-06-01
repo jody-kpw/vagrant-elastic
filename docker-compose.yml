@@ -4,13 +4,20 @@ services:
   elasticsearch:
     container_name: vagrant-elasticsearch
     hostname: elasticsearch
-    image: docker.elastic.co/elasticsearch/elasticsearch-oss:6.5.4
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.1.1
     restart: always
     environment:
       - TZ=Asia/Hong_Kong
       - bootstrap.memory_lock=true
-      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+      - ES_JAVA_OPTS=-Xms512m -Xmx1024m
       - discovery.type=single-node
+      - xpack.security.enabled=true
+      - xpack.monitoring.enabled=true
+      - xpack.ml.enabled=true
+      - xpack.graph.enabled=true
+      - xpack.watcher.enabled=true
+      - ELASTIC_USER=elastic
+      - ELASTIC_PASSWORD=changeme
     ports:
       - "9200:9200"
     networks:
@@ -20,7 +27,7 @@ services:
   kibana:
     container_name: vagrant-kibana
     hostname: kibana
-    image: docker.elastic.co/kibana/kibana-oss:6.5.4
+    image: docker.elastic.co/kibana/kibana:7.1.1
     restart: always
     ports:
       - 5601:5601
@@ -29,13 +36,15 @@ services:
     #We don't start Kibana until the ES instance is ready
     depends_on: ['elasticsearch']
     environment:
-      - ELASTICSEARCH_URL=http://172.23.62.92:9200
       - TZ=Asia/Hong_Kong
+      - ELASTICSEARCH_URL=http://172.23.62.92:9200
+      - ELASTICSEARCH_USERNAME=elastic
+      - ELASTICSEARCH_PASSWORD=changeme
   filebeat:
     container_name: vagrant-filebeat
     hostname: filebeat
     user: root
-    image: docker.elastic.co/beats/filebeat-oss:6.5.4
+    image: docker.elastic.co/beats/filebeat:7.1.1
     restart: always
     networks:
       - elastic
@@ -43,15 +52,16 @@ services:
     depends_on: ['elasticsearch','kibana']
     environment:
       - TZ=Asia/Hong_Kong
+      - ELASTICSEARCH_URL=http://172.23.62.92:9200
+      - ELASTICSEARCH_USERNAME=elastic
+      - ELASTICSEARCH_PASSWORD=changeme
     command: filebeat -e -strict.perms=false
     volumes:
       # # Mount the Filebeat configuration so users can make edits.
       # - filebeat-config:/usr/share/filebeat
       # Mount the Filebeat configuration so users can make edits.
       - ./filebeat/config/filebeat.yml:/usr/share/filebeat/filebeat.yml
-      # Mount the prospectors directory. Users can in turn add propspectors to this directory and they will be dynamically loaded
-      - ./filebeat/config/prospectors.d:/usr/share/filebeat/prospectors.d
-      # Mount the Docker logs for indexing by the custom prospector ./config/filebeat/prospectors.d.
+      # This is needed for filebeat to load container log path as specified in filebeat.yml
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
       # Allows us to report on docker from the hosts information.
       - /var/run/docker.sock:/var/run/docker.sock:ro
